@@ -71,7 +71,16 @@ codebook = {
     '?': '11010',
     '!': '11011',
     ',': '11100',
-    'numeric': '11101',
+    '0': '01110',
+    '1': '01011',
+    '2': '10001',
+    '3': '00100',
+    '4': '00000',
+    '5': '10010',
+    '6': '00110',
+    '7': '10011',
+    '8': '00001',
+    '9': '10000',
     'capital': '11110',
     'special': '11111'}
     
@@ -107,30 +116,13 @@ special_character_codebook = {
     '\n': '11100'
     }
 
-# could save some memory by mapping all numbers to their 1337 equivalents
-# "hello" could map to "h3110"
-numeric_codebook = {
-    '0': '00000',
-    '1': '00001',
-    '2': '00010',
-    '3': '00011',
-    '4': '00100',
-    '5': '00101',
-    '6': '00110',
-    '7': '00111',
-    '8': '01000',
-    '9': '01001'
-    }
-
 inverse_codebook = {v:k for (k,v) in codebook.items()}
 inverse_special_character_codebook = {v:k for (k,v) in special_character_codebook.items()}
-inverse_numeric_codebook = {v:k for (k,v) in numeric_codebook.items()}
 
 
 def encode_file(src: str, out:str, codebooks: List[Dict]) -> None:
     codebook = codebooks[0]
     special_character_codebook = codebooks[1]
-    numeric_codebook = codebooks[2]
     bitstring = ''
     with open(src, 'rb') as f:
         text = f.read()
@@ -142,9 +134,6 @@ def encode_file(src: str, out:str, codebooks: List[Dict]) -> None:
             elif character.isupper():
                 bitstring += codebook['capital']
                 bitstring += codebook[character.lower()]
-            elif character.isdigit():
-                bitstring += codebook['numeric']
-                bitstring += numeric_codebook[character]
             else:
                 bitstring += codebook[character]
         extra = 8-(len(bitstring) % 8)
@@ -170,9 +159,8 @@ def decode_file(src: str, out: str, codebooks: List[Dict], extra_bits: int) -> N
     
     inverse_codebook = codebooks[0]
     special_character_codebook = codebooks[1]
-    numeric_codebook = codebooks[2]
     
-    numeric = special = capital = 0
+    special = capital = 0
     decoded_text = ''
     f = open(src, 'rb')
     encoded_text = BitArray(f.read()).bin[:-extra_bits]
@@ -180,18 +168,13 @@ def decode_file(src: str, out: str, codebooks: List[Dict], extra_bits: int) -> N
     for i in range(0,len(encoded_text),5):
         byte = encoded_text[i:i+5]
         
-        if byte == '11101':
-            numeric = 1
-        elif byte == '11110':
+        if byte == '11110':
             capital = 1
         elif byte == '11111':
             special = 1
         
         elif len(byte) == 5:
-            if numeric == 1:
-                decoded_text += numeric_codebook[byte]
-                numeric = 0
-            elif capital == 1:
+            if capital == 1:
                 decoded_text += inverse_codebook[byte].upper()
                 capital = 0
             elif special == 1:
@@ -206,5 +189,9 @@ def decode_file(src: str, out: str, codebooks: List[Dict], extra_bits: int) -> N
     o.close()
     return (encoded_text,decoded_text)
 
-extra = encode_file('text_sample.txt', 'encoded_text.txt', [codebook, special_character_codebook, numeric_codebook])
-decoded_file = decode_file('encoded_text.txt','decoded_text.txt', [inverse_codebook, inverse_special_character_codebook, inverse_numeric_codebook],extra)
+
+# for text_sample.txt,
+# compression ratio = 1.069
+# gain of ~6.45%
+extra = encode_file('text_sample.txt', 'encoded_text.txt', [codebook, special_character_codebook])
+decoded_file = decode_file('encoded_text.txt','decoded_text.txt', [inverse_codebook, inverse_special_character_codebook],extra)
